@@ -14,3 +14,7 @@ All screenshots were taken from the Fabric workspace while building and testing 
 | `08_pipeline_success_run.png` | Successful run, including a retried capacity failure |
 | `09_pipeline_failure_test.png` | Fault-injection test: Silver fails, Gold skipped |
 | `10_etl_run_log.png` | Audit log showing Succeeded and Failed runs |
+| `11_report_executive_overview.png` | Report page 1: KPIs, 2019 vs 2020 trend, naive vs like-for-like YoY |
+| `12_report_growth_mix.png` | Report page 2: orders vs AOV, category mix, unit price vs units per order |
+| `13_report_channel_delivery.png` | Report page 3: online share, delivery speed, 2020 decline by channel |
+| `14_report_stores_markets.png` | Report page 4: productivity by country, store ranking, local currency |

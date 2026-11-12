@@ -1,8 +1,8 @@
 # Global Electronics Retailer — End-to-End Analytics on Microsoft Fabric
 
-An end-to-end data engineering and analytics project built on **Microsoft Fabric** using the **Medallion Architecture** (Bronze → Silver → Gold). Raw CSV extracts from a fictitious global electronics retailer are ingested, validated, cleaned, modelled into a star schema and orchestrated by a monitored, failure-aware pipeline, ready for Power BI reporting.
+An end-to-end data engineering and analytics project built on **Microsoft Fabric** using the **Medallion Architecture** (Bronze → Silver → Gold). Raw CSV extracts from a fictitious global electronics retailer are ingested, validated, cleaned, modelled into a star schema and orchestrated by a monitored, failure-aware pipeline, and reported through a Direct Lake Power BI model and a 4-page report.
 
-> **Status:** Bronze, Silver, Gold, orchestration and logging complete · Power BI reporting in progress
+> **Status:** Complete: Bronze, Silver, Gold, orchestration and logging, semantic model and Power BI report
 
 ---
 
@@ -45,7 +45,7 @@ flowchart LR
 | Gold | `nb_03_gold_model` | `fact_sales`, `dim_date`, `dim_customer`, `dim_product`, `dim_store` | Analytics-ready star schema |
 | Logging | `nb_04_log_run` | `etl_run_log` | One audit row per pipeline run |
 
-**Tech stack:** Microsoft Fabric (Lakehouse, OneLake, Notebooks, Data Pipelines, SQL analytics endpoint), PySpark (Spark 4.x runtime), Delta Lake, Spark SQL / T-SQL, Power BI (Direct Lake, DAX: in progress).
+**Tech stack:** Microsoft Fabric (Lakehouse, OneLake, Notebooks, Data Pipelines, SQL analytics endpoint), PySpark (Spark 4.x runtime), Delta Lake, Spark SQL / T-SQL, Power BI (Direct Lake semantic model, DAX).
 
 ---
 
@@ -214,6 +214,37 @@ The real decline is **–70%**, and early 2020 was actually *stronger* than earl
 
 ---
 
+## Power BI: semantic model and report
+
+### Semantic model (`sm_global_electronics`)
+- **Direct Lake** on the Gold Delta tables: import-like performance with no data copy; the report reflects each pipeline refresh.
+- Star schema relationships: many-to-one, single direction, from `fact_sales` to the 4 dimensions.
+- **Role-playing date:** `order_date_key → dim_date` is active; `delivery_date_key → dim_date` is inactive and used only through `USERELATIONSHIP`.
+- **No calculated columns:** derived attributes (age band, store name, like-for-like flag, sort keys) were built in the Gold notebook, keeping the model fully Direct Lake-compatible.
+- **25 measures** in 4 display folders, each tested in DAX query view against independently computed values. Raw amount and key columns are hidden, so reports use the tested measures (one version of the truth).
+- Full list with business questions and the traps each measure avoids: [`powerbi/dax_measures.md`](powerbi/dax_measures.md)
+
+### Report (`rpt_global_electronics`)
+
+| Page | Business question | Key finding |
+|---|---|---|
+| Executive Overview | How are we doing overall? | $55.76M revenue, 58.6% margin; naive 2021 YoY –89% vs like-for-like –70% |
+| Growth & Mix | Why did order value fall? | Orders ×3.2 (2016→2019) but AOV –17%: items per order flat, mix shifted to cheaper categories |
+| Channel & Delivery | Is online worth it? When did 2020 turn down? | Online share 17% → 27%; delivery 7.3 → 3.8 days; both channels fell from May 2020 |
+| Stores & Markets | Which stores and markets perform? | Canada ($750/m²) and the US lead; 9 stores never traded, 5 closed mid-period |
+
+Design choices: action titles that state the insight, one accent colour for the focus series with grey for context, axes and data bars starting at zero, and data caveats on the page.
+
+| | |
+|---|---|
+| <img src="images/11_report_executive_overview.png" alt="Executive Overview"> | <img src="images/12_report_growth_mix.png" alt="Growth and Mix"> |
+| <img src="images/13_report_channel_delivery.png" alt="Channel and Delivery"> | <img src="images/14_report_stores_markets.png" alt="Stores and Markets"> |
+
+### Data issue found while reporting
+The source contains **no sales between ~18 March and ~23 April in every year** (2016–2020), almost certainly an extract gap. Row-level DQ rules can't detect missing periods, so it surfaced only in the monthly trend. The report annotates it and excludes March–April from month-level YoY; the pipeline roadmap includes a date-coverage check.
+
+---
+
 ## Engineering challenges solved
 
 | Challenge | What happened | Resolution |
@@ -221,6 +252,7 @@ The real decline is **–70%**, and early 2020 was actually *stronger* than earl
 | Mixed file encodings | Customers.csv is Windows-1252; Fabric's Spark 4 runtime rejects that charset name by default | Profiled the bytes: ISO-8859-1 would silently corrupt 74 characters (e.g. *Miloš*). Enabled `spark.sql.legacy.javaCharsets` instead and verified the names |
 | Spark capacity limits (HTTP 430) | Each notebook activity starts its own Spark session; the trial capacity rejected new sessions | Diagnosed from the run output; added retry policies; stopped idle interactive sessions |
 | Failure logging that couldn't log | The failure-log step hit the same capacity limit, so failures weren't recorded | Added retries to the log steps and made the logging idempotent |
+| Misleading visuals | A narrow secondary axis made a flat metric (units per order, 7.4–7.6) look volatile | Axes and data bars start at zero; chart shape now matches the real size of the change |
 | Blind retries | Retries also re-run deterministic failures (e.g. the DQ gate) | Documented trade-off; next step: separate data failures from infrastructure failures |
 
 More: [`docs/lessons_learned.md`](docs/lessons_learned.md)
@@ -245,6 +277,7 @@ More: [`docs/lessons_learned.md`](docs/lessons_learned.md)
 │   └── nb_04_log_run.ipynb
 ├── pipeline/          # pipeline design + exported JSON
 ├── sql/               # validation and analysis queries
+├── powerbi/           # DAX measures (business question, DAX, trap)
 ├── docs/              # data profile, DQ rules, lessons learned
 └── images/            # screenshots from the Fabric workspace
 ```
@@ -256,9 +289,11 @@ More: [`docs/lessons_learned.md`](docs/lessons_learned.md)
 3. Import the four notebooks and attach the Lakehouse to each.
 4. Run `nb_01` → `nb_02` → `nb_03` (or build the pipeline described in `pipeline/README.md`).
 5. Validate with the queries in `sql/validation_queries.sql`.
+6. Create a semantic model from the 5 Gold tables (Direct Lake), add the relationships above, and the measures in `powerbi/dax_measures.md`.
 
 ## Roadmap
 
-- [ ] Power BI semantic model (Direct Lake) with DAX measures
-- [ ] Report: revenue trends, like-for-like YoY, category/region/store performance, online delivery
+- [x] Power BI semantic model (Direct Lake) with DAX measures
+- [x] Report: revenue trends, like-for-like YoY, category/region/store performance, online delivery
+- [ ] Date-coverage DQ check (flag runs of more than 7 days with no sales)
 - [ ] Separate data-quality failures from infrastructure failures for smarter retries
