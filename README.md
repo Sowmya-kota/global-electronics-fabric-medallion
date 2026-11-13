@@ -240,6 +240,34 @@ Design choices: action titles that state the insight, one accent colour for the 
 | <img src="images/11_report_executive_overview.png" alt="Executive Overview"> | <img src="images/12_report_growth_mix.png" alt="Growth and Mix"> |
 | <img src="images/13_report_channel_delivery.png" alt="Channel and Delivery"> | <img src="images/14_report_stores_markets.png" alt="Stores and Markets"> |
 
+### Row-level security (RLS)
+A **Country Manager** role restricts the model to one country's customers with a rule on `dim_customer`:
+
+```dax
+[country] = "Germany"
+```
+
+- **Design choice:** filtering by *customer* country rather than *store* country includes online orders from German customers ($1.17M). A store-based rule would have missed them, because the Online store has no country. The right definition depends on the business, so it should be confirmed with stakeholders.
+- The filter flows from `dim_customer` to `fact_sales` through the relationship, so every measure and page is restricted.
+- **Validation:** *Test as role* is not supported when Direct Lake uses Single Sign-On, so the rule was validated in DAX query view with the same filter:
+
+```dax
+EVALUATE
+CALCULATETABLE (
+    ROW ( "Revenue", [Revenue], "Orders", [Orders], "Customers", [Customers], "Online Revenue", [Online Revenue] ),
+    dim_customer[country] = "Germany"
+)
+```
+
+| | All data | Country Manager (Germany) |
+|---|---|---|
+| Revenue | $55,755,480 | $5,414,150 |
+| Orders | 26,326 | 2,440 |
+| Customers | 11,887 | 1,150 |
+| Online revenue | $11,404,325 | $1,167,871 |
+
+RLS applies to users with Viewer access; workspace admins still see all data. A full impersonation test would require switching the model to a fixed-identity connection.
+
 ### Data issue found while reporting
 The source contains **no sales between ~18 March and ~23 April in every year** (2016–2020), almost certainly an extract gap. Row-level DQ rules can't detect missing periods, so it surfaced only in the monthly trend. The report annotates it and excludes March–April from month-level YoY; the pipeline roadmap includes a date-coverage check.
 
@@ -295,5 +323,7 @@ More: [`docs/lessons_learned.md`](docs/lessons_learned.md)
 
 - [x] Power BI semantic model (Direct Lake) with DAX measures
 - [x] Report: revenue trends, like-for-like YoY, category/region/store performance, online delivery
+- [x] Row-level security (Country Manager role)
+- [ ] Dynamic RLS (one role, filtered by the signed-in user's email)
 - [ ] Date-coverage DQ check (flag runs of more than 7 days with no sales)
 - [ ] Separate data-quality failures from infrastructure failures for smarter retries
