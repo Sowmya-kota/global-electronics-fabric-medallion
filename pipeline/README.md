@@ -39,5 +39,5 @@ Log Fail Bronze     Log Fail Silver       Log Fail Gold
 ## Schedule
 Not enabled: the source data is static and the Fabric trial capacity is limited. In production this would use the pipeline's built-in schedule (e.g. daily at 06:00), with the success/failure logging above providing monitoring.
 
-## Export the pipeline definition
-In Fabric: open the pipeline → **View** → **View JSON code** (`{}`), copy it, and save it here as `pl_global_electronics_refresh.json`.
+## Pipeline definition
+[`pl_global_electronics_refresh.json`](pl_global_electronics_refresh.json) is the exported definition (View → View JSON code in Fabric). Workspace, notebook and user IDs are replaced with placeholders; map them to your own items when importing.

@@ -1,0 +1,282 @@
+{
+    "name": "pl_global_electronics_refresh",
+    "objectId": "<pipeline-id>",
+    "properties": {
+        "activities": [
+            {
+                "name": "Bronze Ingest",
+                "type": "TridentNotebook",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": "<nb_01_bronze_ingest-id>",
+                    "workspaceId": "<workspace-id>",
+                    "parameters": {
+                        "source_folder": {
+                            "value": "Files/raw/global_electronics",
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "Silver Transform",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Bronze Ingest",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 120,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": "<nb_02_silver_transform-id>",
+                    "workspaceId": "<workspace-id>"
+                }
+            },
+            {
+                "name": "Gold Model",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Silver Transform",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 120,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": "<nb_03_gold_model-id>",
+                    "workspaceId": "<workspace-id>",
+                    "parameters": {
+                        "revenue_tolerance_usd": {
+                            "value": "0.01",
+                            "type": "float"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "Log Success",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Gold Model",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 120,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": "<nb_04_log_run-id>",
+                    "workspaceId": "<workspace-id>",
+                    "parameters": {
+                        "pipeline_name": {
+                            "value": {
+                                "value": "pl_global_electronics_refresh",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "pipeline_run_id": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "status": {
+                            "value": {
+                                "value": "Succeeded",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "Log Fail Bronze",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Bronze Ingest",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 120,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": "<nb_04_log_run-id>",
+                    "workspaceId": "<workspace-id>",
+                    "parameters": {
+                        "pipeline_name": {
+                            "value": "pl_global_electronics_refresh",
+                            "type": "string"
+                        },
+                        "pipeline_run_id": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "status": {
+                            "value": "Failed",
+                            "type": "string"
+                        },
+                        "failed_activity": {
+                            "value": "Bronze Ingest",
+                            "type": "string"
+                        },
+                        "error_message": {
+                            "value": {
+                                "value": "@activity('Bronze Ingest').error.message",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "Log Fail Silver",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Silver Transform",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 120,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": "<nb_04_log_run-id>",
+                    "workspaceId": "<workspace-id>",
+                    "parameters": {
+                        "pipeline_name": {
+                            "value": "pl_global_electronics_refresh",
+                            "type": "string"
+                        },
+                        "pipeline_run_id": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "status": {
+                            "value": "Failed",
+                            "type": "string"
+                        },
+                        "failed_activity": {
+                            "value": "Silver Transform",
+                            "type": "string"
+                        },
+                        "error_message": {
+                            "value": {
+                                "value": "@activity('Silver Transform').error.message",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "Log Fail Gold",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "Gold Model",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 2,
+                    "retryIntervalInSeconds": 120,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": "<nb_04_log_run-id>",
+                    "workspaceId": "<workspace-id>",
+                    "parameters": {
+                        "pipeline_name": {
+                            "value": "pl_global_electronics_refresh",
+                            "type": "string"
+                        },
+                        "pipeline_run_id": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "status": {
+                            "value": "Failed",
+                            "type": "string"
+                        },
+                        "failed_activity": {
+                            "value": "Gold Model",
+                            "type": "string"
+                        },
+                        "error_message": {
+                            "value": {
+                                "value": "@activity('Gold Model').error.message",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        ],
+        "lastPublishTime": "2026-11-09T07:30:12Z"
+    }
+}
