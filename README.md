@@ -223,6 +223,7 @@ The real decline is **–70%**, and early 2020 was actually *stronger* than earl
 - **No calculated columns:** derived attributes (age band, store name, like-for-like flag, sort keys) were built in the Gold notebook, keeping the model fully Direct Lake-compatible.
 - **25 measures** in 4 display folders, each tested in DAX query view against independently computed values. Raw amount and key columns are hidden, so reports use the tested measures (one version of the truth).
 - Full list with business questions and the traps each measure avoids: [`powerbi/dax_measures.md`](powerbi/dax_measures.md)
+- Full model definition (tables, columns, relationships, measure formats and folders, RLS), exported from Fabric: [`powerbi/semantic_model.md`](powerbi/semantic_model.md)
 
 ### Report (`rpt_global_electronics`)
 
@@ -305,7 +306,7 @@ More: [`docs/lessons_learned.md`](docs/lessons_learned.md)
 │   └── nb_04_log_run.ipynb
 ├── pipeline/          # pipeline design + exported JSON
 ├── sql/               # validation and analysis queries
-├── powerbi/           # DAX measures (business question, DAX, trap)
+├── powerbi/           # DAX measures + exported semantic model definition
 ├── docs/              # data profile, DQ rules, lessons learned
 └── images/            # screenshots from the Fabric workspace
 ```
